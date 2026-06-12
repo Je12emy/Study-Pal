@@ -15,6 +15,7 @@ export function useStudyAreas() {
   const studyAreasQuery = useQuery({
     queryKey: studyAreasQueryKey,
     queryFn: listStudyAreas,
+    staleTime: 30_000,
   })
 
   const createMutation = useMutation({
