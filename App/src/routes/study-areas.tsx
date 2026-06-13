@@ -2,23 +2,14 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 import { ChevronRight, Loader2, PencilLine, Plus, RefreshCw, Trash2, X } from "lucide-react"
-import { useForm } from "@tanstack/react-form"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { studyAreaFormHook, validateStudyAreaName } from "@/forms/study-area-form"
 import { useStudyAreas } from "@/hooks/use-study-areas"
 import { queryClient } from "@/lib/query-client"
 import { studyAreasQueryKey } from "@/hooks/use-study-areas"
 import type { StudyArea } from "@/services/study-areas"
 import { listStudyAreas } from "@/services/study-areas"
-
-function normalizeName(value: string) {
-  return value.trim()
-}
-
-function validateStudyAreaName(value: string) {
-  return normalizeName(value) ? undefined : "Study area name is required."
-}
 
 async function invalidateStudyAreas() {
   await queryClient.invalidateQueries({ queryKey: studyAreasQueryKey })
@@ -39,10 +30,10 @@ type StudyAreaCreateFormProps = {
 }
 
 function StudyAreaCreateForm({ onCreate }: StudyAreaCreateFormProps) {
-  const form = useForm({
+  const form = studyAreaFormHook.useAppForm({
     defaultValues: { name: "" },
     onSubmit: async ({ value, formApi }) => {
-      const name = normalizeName(value.name)
+      const name = value.name.trim()
       if (!name) {
         return
       }
@@ -62,41 +53,27 @@ function StudyAreaCreateForm({ onCreate }: StudyAreaCreateFormProps) {
       }}
       className="flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-4"
     >
-      <div className="space-y-1">
-        <h2 className="text-sm font-semibold">Create Study Area</h2>
-        <p className="text-sm text-muted-foreground">
-          Use a broad subject name like <span className="font-medium text-foreground">French</span> or{" "}
-          <span className="font-medium text-foreground">React</span>.
-        </p>
-      </div>
+      <form.AppForm>
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold">Create Study Area</h2>
+          <p className="text-sm text-muted-foreground">
+            Use a broad subject name like <span className="font-medium text-foreground">French</span> or{" "}
+            <span className="font-medium text-foreground">React</span>.
+          </p>
+        </div>
 
-      <form.Field
-        name="name"
-        validators={{ onChange: ({ value }) => validateStudyAreaName(value) }}
-      >
-        {(field) => {
-          const showError = field.state.meta.isDirty || field.state.meta.isTouched
-          const error = field.state.meta.errors[0]
-
-          return (
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Name
-              </span>
-              <Input
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                placeholder="Type a unique study area name"
-                aria-invalid={showError && Boolean(error)}
-              />
-              {showError && error ? (
-                <p className="text-xs text-destructive">{String(error)}</p>
-              ) : null}
-            </label>
-          )
-        }}
-      </form.Field>
+        <form.AppField
+          name="name"
+          validators={{ onChange: ({ value }) => validateStudyAreaName(value) }}
+        >
+          {(field) => (
+            <field.TextField
+              label="Name"
+              placeholder="Type a unique study area name"
+            />
+          )}
+        </form.AppField>
+      </form.AppForm>
 
       <Button type="submit" disabled={!form.state.canSubmit || form.state.isSubmitting}>
         {form.state.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
@@ -114,10 +91,10 @@ type StudyAreaEditFormProps = {
 }
 
 function StudyAreaEditForm({ area, isBusy, onRename, onCancel }: StudyAreaEditFormProps) {
-  const form = useForm({
+  const form = studyAreaFormHook.useAppForm({
     defaultValues: { name: area.name },
     onSubmit: async ({ value }) => {
-      const name = normalizeName(value.name)
+      const name = value.name.trim()
       if (!name) {
         return
       }
@@ -137,31 +114,20 @@ function StudyAreaEditForm({ area, isBusy, onRename, onCancel }: StudyAreaEditFo
       }}
       className="flex flex-col gap-3 sm:flex-row"
     >
-      <form.Field
-        name="name"
-        validators={{ onChange: ({ value }) => validateStudyAreaName(value) }}
-      >
-        {(field) => {
-          const showError = field.state.meta.isDirty || field.state.meta.isTouched
-          const error = field.state.meta.errors[0]
-
-          return (
-            <label className="flex-1 space-y-2">
-              <span className="sr-only">Study area name</span>
-              <Input
-                value={field.state.value}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                disabled={isBusy || form.state.isSubmitting}
-                aria-invalid={showError && Boolean(error)}
-              />
-              {showError && error ? (
-                <p className="text-xs text-destructive">{String(error)}</p>
-              ) : null}
-            </label>
-          )
-        }}
-      </form.Field>
+      <form.AppForm>
+        <form.AppField
+          name="name"
+          validators={{ onChange: ({ value }) => validateStudyAreaName(value) }}
+        >
+          {(field) => (
+            <field.TextField
+              label="Study area name"
+              srOnlyLabel
+              disabled={isBusy || form.state.isSubmitting}
+            />
+          )}
+        </form.AppField>
+      </form.AppForm>
 
       <div className="flex gap-2">
         <Button type="submit" disabled={isBusy || form.state.isSubmitting || !form.state.canSubmit}>
