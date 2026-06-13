@@ -1,7 +1,6 @@
 using API.Contracts.StudyAreas;
 using API.Data;
 using API.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace API.Services.StudyAreas;
 
@@ -9,14 +8,7 @@ public sealed class StudyAreaService(StudyPalDbContext dbContext) : IStudyAreaSe
 {
     public async Task<IReadOnlyList<StudyAreaResponse>> ListAsync(CancellationToken cancellationToken)
     {
-        return await dbContext.StudyAreas
-            .AsNoTracking()
-            .OrderBy(studyArea => studyArea.Name)
-            .Select(studyArea => new StudyAreaResponse(
-                studyArea.Id,
-                studyArea.Name,
-                studyArea.StudyGoals.Count))
-            .ToListAsync(cancellationToken);
+        return await StudyAreaQueries.ListAsync(dbContext, cancellationToken);
     }
 
     public async Task<Result<StudyAreaResponse>> CreateAsync(
@@ -29,7 +21,7 @@ public sealed class StudyAreaService(StudyPalDbContext dbContext) : IStudyAreaSe
             return Result<StudyAreaResponse>.ValidationFailure("Study Area name is required.");
         }
 
-        if (await NameExistsAsync(normalizedName, excludedId: null, cancellationToken))
+        if (await StudyAreaQueries.NameExistsAsync(dbContext, normalizedName, excludedId: null, cancellationToken))
         {
             return Result<StudyAreaResponse>.ValidationFailure("A Study Area with this name already exists.");
         }
@@ -52,15 +44,13 @@ public sealed class StudyAreaService(StudyPalDbContext dbContext) : IStudyAreaSe
             return Result<StudyAreaResponse>.ValidationFailure("Study Area name is required.");
         }
 
-        var studyArea = await dbContext.StudyAreas
-            .Include(area => area.StudyGoals)
-            .SingleOrDefaultAsync(area => area.Id == id, cancellationToken);
+        var studyArea = await StudyAreaQueries.GetByIdWithGoalsAsync(dbContext, id, cancellationToken);
         if (studyArea is null)
         {
             return Result<StudyAreaResponse>.NotFound("Study Area was not found.");
         }
 
-        if (await NameExistsAsync(normalizedName, id, cancellationToken))
+        if (await StudyAreaQueries.NameExistsAsync(dbContext, normalizedName, id, cancellationToken))
         {
             return Result<StudyAreaResponse>.ValidationFailure("A Study Area with this name already exists.");
         }
@@ -73,8 +63,7 @@ public sealed class StudyAreaService(StudyPalDbContext dbContext) : IStudyAreaSe
 
     public async Task<Result<bool>> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var studyArea = await dbContext.StudyAreas
-            .SingleOrDefaultAsync(area => area.Id == id, cancellationToken);
+        var studyArea = await StudyAreaQueries.GetByIdAsync(dbContext, id, cancellationToken);
         if (studyArea is null)
         {
             return Result<bool>.NotFound("Study Area was not found.");
@@ -84,12 +73,6 @@ public sealed class StudyAreaService(StudyPalDbContext dbContext) : IStudyAreaSe
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Result<bool>.Success(true);
-    }
-
-    private async Task<bool> NameExistsAsync(string name, int? excludedId, CancellationToken cancellationToken)
-    {
-        return await dbContext.StudyAreas
-            .AnyAsync(studyArea => studyArea.Name == name && studyArea.Id != excludedId, cancellationToken);
     }
 
     private static string? NormalizeName(string name)
