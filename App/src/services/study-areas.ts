@@ -1,61 +1,105 @@
+import { isResponseError, up } from "up-fetch"
+import { z } from "zod"
+
 const API_BASE_URL = "/api"
 
-export type StudyArea = {
-  id: number
-  name: string
-  studyGoalCount: number
-}
+const studyAreaSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  studyGoalCount: z.number().int().nonnegative(),
+})
 
-type ApiError = {
-  error?: string
-}
+const studyAreasSchema = z.array(studyAreaSchema)
 
-type StudyAreaPayload = {
-  name: string
-}
+const studyAreaPayloadSchema = z.object({
+  name: z.string().trim().min(1, "Study Area name is required."),
+})
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const { headers: initHeaders, ...rest } = init ?? {}
-  const headers = new Headers(initHeaders)
-  headers.set("Content-Type", "application/json")
+const apiErrorSchema = z.object({
+  error: z.string().min(1),
+})
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers,
-    ...rest,
-  })
+const api = up(fetch, () => ({
+  baseUrl: API_BASE_URL,
+  retry: { attempts: 0 },
+}))
 
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as ApiError
-    throw new Error(payload.error ?? `Request failed with status ${response.status}.`)
+export type StudyArea = z.infer<typeof studyAreaSchema>
+export type StudyAreaPayload = z.input<typeof studyAreaPayloadSchema>
+
+function toErrorMessage(error: unknown, fallbackMessage: string) {
+  if (isResponseError(error)) {
+    const parsedError = apiErrorSchema.safeParse(error.data)
+    if (parsedError.success) {
+      return parsedError.data.error
+    }
   }
 
-  if (response.status === 204) {
-    return undefined as T
+  if (error instanceof z.ZodError) {
+    return error.issues[0]?.message ?? fallbackMessage
   }
 
-  return (await response.json()) as T
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return fallbackMessage
 }
 
-export function listStudyAreas() {
-  return requestJson<StudyArea[]>("/study-areas")
-}
-
-export function createStudyArea(payload: StudyAreaPayload) {
-  return requestJson<StudyArea>("/study-areas", {
-    method: "POST",
-    body: JSON.stringify(payload),
+function rethrowAsError(error: unknown, fallbackMessage: string): never {
+  throw new Error(toErrorMessage(error, fallbackMessage), {
+    cause: error instanceof Error ? error : undefined,
   })
 }
 
-export function renameStudyArea(id: number, payload: StudyAreaPayload) {
-  return requestJson<StudyArea>(`/study-areas/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  })
+function normalizePayload(payload: StudyAreaPayload) {
+  return studyAreaPayloadSchema.parse(payload)
 }
 
-export function deleteStudyArea(id: number) {
-  return requestJson<void>(`/study-areas/${id}`, {
-    method: "DELETE",
-  })
+export async function listStudyAreas(): Promise<StudyArea[]> {
+  try {
+    return await api("/study-areas", {
+      schema: studyAreasSchema,
+    })
+  } catch (error) {
+    rethrowAsError(error, "Failed to load study areas.")
+  }
+}
+
+export async function createStudyArea(payload: StudyAreaPayload): Promise<StudyArea> {
+  try {
+    return await api("/study-areas", {
+      method: "POST",
+      body: normalizePayload(payload),
+      schema: studyAreaSchema,
+    })
+  } catch (error) {
+    rethrowAsError(error, "Failed to create study area.")
+  }
+}
+
+export async function renameStudyArea(
+  id: number,
+  payload: StudyAreaPayload
+): Promise<StudyArea> {
+  try {
+    return await api(`/study-areas/${id}`, {
+      method: "PUT",
+      body: normalizePayload(payload),
+      schema: studyAreaSchema,
+    })
+  } catch (error) {
+    rethrowAsError(error, "Failed to rename study area.")
+  }
+}
+
+export async function deleteStudyArea(id: number): Promise<void> {
+  try {
+    await api(`/study-areas/${id}`, {
+      method: "DELETE",
+      parseResponse: async () => undefined,
+    })
+  } catch (error) {
+    rethrowAsError(error, "Failed to delete study area.")
+  }
 }
