@@ -1,7 +1,7 @@
-import { isResponseError, up } from "up-fetch"
+import { isResponseError } from "up-fetch"
 import { z } from "zod"
 
-const API_BASE_URL = "/api"
+import { api } from "@/services/api-client"
 
 const studyAreaSchema = z.object({
   id: z.number().int(),
@@ -18,11 +18,6 @@ const studyAreaPayloadSchema = z.object({
 const apiErrorSchema = z.object({
   error: z.string().min(1),
 })
-
-const api = up(fetch, () => ({
-  baseUrl: API_BASE_URL,
-  retry: { attempts: 0 },
-}))
 
 export type StudyArea = z.infer<typeof studyAreaSchema>
 export type StudyAreaPayload = z.input<typeof studyAreaPayloadSchema>
