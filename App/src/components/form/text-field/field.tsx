@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input"
 
-import { useFieldContext } from "./contexts"
+import { useFieldContext } from "../contexts"
 
 type FormFieldProps = {
   label: string
@@ -25,7 +25,7 @@ export function FormField({
         className={
           srOnlyLabel
             ? "sr-only"
-            : "text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            : "text-xs font-medium tracking-wide text-muted-foreground uppercase"
         }
       >
         {label}
@@ -38,7 +38,9 @@ export function FormField({
         disabled={disabled}
         aria-invalid={showError && Boolean(error)}
       />
-      {showError && error ? <p className="text-xs text-destructive">{String(error)}</p> : null}
+      {showError && error ? (
+        <p className="text-xs text-destructive">{String(error)}</p>
+      ) : null}
     </label>
   )
 }

@@ -1,6 +1,6 @@
 import { createFormHook } from "@tanstack/react-form"
 
-import { FormField } from "./field"
+import { FormField } from "./text-field/field"
 import { fieldContext, formContext } from "./contexts"
 
 export const studyAreaFormHook = createFormHook({
@@ -12,4 +12,7 @@ export const studyAreaFormHook = createFormHook({
   formComponents: {},
 })
 
-export { normalizeStudyAreaName, validateStudyAreaName } from "./helpers"
+export {
+  normalizeStudyAreaName,
+  validateStudyAreaName,
+} from "./text-field/helpers"

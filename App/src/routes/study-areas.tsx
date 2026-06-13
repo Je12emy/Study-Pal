@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { ChevronRight, Loader2, PencilLine, Plus, RefreshCw, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { studyAreaFormHook, validateStudyAreaName } from "@/forms/study-area-form"
+import { studyAreaFormHook, validateStudyAreaName } from "@/components/form"
 import { useStudyAreas } from "@/hooks/use-study-areas"
 import { queryClient } from "@/lib/query-client"
 import { studyAreasQueryKey } from "@/hooks/use-study-areas"
