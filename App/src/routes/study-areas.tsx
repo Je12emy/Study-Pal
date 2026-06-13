@@ -5,6 +5,7 @@ import { ChevronRight, Loader2, PencilLine, Plus, RefreshCw, Trash2, X } from "l
 import { useForm } from "@tanstack/react-form"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { useStudyAreas } from "@/hooks/use-study-areas"
 import { queryClient } from "@/lib/query-client"
 import { studyAreasQueryKey } from "@/hooks/use-study-areas"
@@ -82,13 +83,12 @@ function StudyAreaCreateForm({ onCreate }: StudyAreaCreateFormProps) {
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Name
               </span>
-              <input
+              <Input
                 value={field.state.value}
                 onChange={(event) => field.handleChange(event.target.value)}
                 onBlur={field.handleBlur}
                 placeholder="Type a unique study area name"
                 aria-invalid={showError && Boolean(error)}
-                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/20"
               />
               {showError && error ? (
                 <p className="text-xs text-destructive">{String(error)}</p>
@@ -148,13 +148,12 @@ function StudyAreaEditForm({ area, isBusy, onRename, onCancel }: StudyAreaEditFo
           return (
             <label className="flex-1 space-y-2">
               <span className="sr-only">Study area name</span>
-              <input
+              <Input
                 value={field.state.value}
                 onChange={(event) => field.handleChange(event.target.value)}
                 onBlur={field.handleBlur}
                 disabled={isBusy || form.state.isSubmitting}
                 aria-invalid={showError && Boolean(error)}
-                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
               />
               {showError && error ? (
                 <p className="text-xs text-destructive">{String(error)}</p>
