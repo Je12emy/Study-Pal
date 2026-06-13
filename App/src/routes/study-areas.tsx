@@ -1,12 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createRoute } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState, type FormEvent } from "react"
 import { ChevronRight, Loader2, PencilLine, Plus, RefreshCw, Trash2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useStudyAreas } from "@/hooks/use-study-areas"
 import { queryClient } from "@/lib/query-client"
-import { route as rootRoute } from "@/routes/__root"
 import type { StudyArea } from "@/services/study-areas"
 import { listStudyAreas } from "@/services/study-areas"
 
@@ -14,9 +13,7 @@ function normalizeName(value: string) {
   return value.trim()
 }
 
-export const route = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/study-areas",
+export const Route = createFileRoute("/study-areas")({
   loader: async () => {
     await queryClient.ensureQueryData({
       queryKey: ["study-areas"],

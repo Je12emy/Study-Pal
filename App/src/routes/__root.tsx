@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Link, Outlet, createRootRoute } from "@tanstack/react-router"
 
-export const route = createRootRoute({
+export const Route = createRootRoute({
   component: RootLayout,
 })
 
