@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 
 import {
   createStudyArea,
@@ -10,8 +10,6 @@ import {
 export const studyAreasQueryKey = ["study-areas"] as const
 
 export function useStudyAreas() {
-  const queryClient = useQueryClient()
-
   const studyAreasQuery = useQuery({
     queryKey: studyAreasQueryKey,
     queryFn: listStudyAreas,
@@ -20,24 +18,15 @@ export function useStudyAreas() {
 
   const createMutation = useMutation({
     mutationFn: createStudyArea,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studyAreasQueryKey })
-    },
   })
 
   const renameMutation = useMutation({
     mutationFn: ({ id, name }: { id: number; name: string }) =>
       renameStudyArea(id, { name }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studyAreasQueryKey })
-    },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteStudyArea,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studyAreasQueryKey })
-    },
   })
 
   return {

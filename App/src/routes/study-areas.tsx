@@ -1,11 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createFileRoute } from "@tanstack/react-router"
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState } from "react"
 import { ChevronRight, Loader2, PencilLine, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { useForm } from "@tanstack/react-form"
 
 import { Button } from "@/components/ui/button"
 import { useStudyAreas } from "@/hooks/use-study-areas"
 import { queryClient } from "@/lib/query-client"
+import { studyAreasQueryKey } from "@/hooks/use-study-areas"
 import type { StudyArea } from "@/services/study-areas"
 import { listStudyAreas } from "@/services/study-areas"
 
@@ -13,29 +15,186 @@ function normalizeName(value: string) {
   return value.trim()
 }
 
+function validateStudyAreaName(value: string) {
+  return normalizeName(value) ? undefined : "Study area name is required."
+}
+
+async function invalidateStudyAreas() {
+  await queryClient.invalidateQueries({ queryKey: studyAreasQueryKey })
+}
+
 export const Route = createFileRoute("/study-areas")({
   loader: async () => {
     await queryClient.ensureQueryData({
-      queryKey: ["study-areas"],
+      queryKey: studyAreasQueryKey,
       queryFn: listStudyAreas,
     })
   },
   component: StudyAreasPage,
 })
 
+type StudyAreaCreateFormProps = {
+  onCreate: (name: string) => Promise<boolean>
+}
+
+function StudyAreaCreateForm({ onCreate }: StudyAreaCreateFormProps) {
+  const form = useForm({
+    defaultValues: { name: "" },
+    onSubmit: async ({ value, formApi }) => {
+      const name = normalizeName(value.name)
+      if (!name) {
+        return
+      }
+
+      const success = await onCreate(name)
+      if (success) {
+        formApi.reset()
+      }
+    },
+  })
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        void form.handleSubmit()
+      }}
+      className="flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-4"
+    >
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold">Create Study Area</h2>
+        <p className="text-sm text-muted-foreground">
+          Use a broad subject name like <span className="font-medium text-foreground">French</span> or{" "}
+          <span className="font-medium text-foreground">React</span>.
+        </p>
+      </div>
+
+      <form.Field
+        name="name"
+        validators={{ onChange: ({ value }) => validateStudyAreaName(value) }}
+      >
+        {(field) => {
+          const showError = field.state.meta.isDirty || field.state.meta.isTouched
+          const error = field.state.meta.errors[0]
+
+          return (
+            <label className="space-y-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Name
+              </span>
+              <input
+                value={field.state.value}
+                onChange={(event) => field.handleChange(event.target.value)}
+                onBlur={field.handleBlur}
+                placeholder="Type a unique study area name"
+                aria-invalid={showError && Boolean(error)}
+                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/20"
+              />
+              {showError && error ? (
+                <p className="text-xs text-destructive">{String(error)}</p>
+              ) : null}
+            </label>
+          )
+        }}
+      </form.Field>
+
+      <Button type="submit" disabled={!form.state.canSubmit || form.state.isSubmitting}>
+        {form.state.isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+        Add area
+      </Button>
+    </form>
+  )
+}
+
+type StudyAreaEditFormProps = {
+  area: StudyArea
+  isBusy: boolean
+  onRename: (id: number, name: string) => Promise<boolean>
+  onCancel: () => void
+}
+
+function StudyAreaEditForm({ area, isBusy, onRename, onCancel }: StudyAreaEditFormProps) {
+  const form = useForm({
+    defaultValues: { name: area.name },
+    onSubmit: async ({ value }) => {
+      const name = normalizeName(value.name)
+      if (!name) {
+        return
+      }
+
+      const success = await onRename(area.id, name)
+      if (success) {
+        onCancel()
+      }
+    },
+  })
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        void form.handleSubmit()
+      }}
+      className="flex flex-col gap-3 sm:flex-row"
+    >
+      <form.Field
+        name="name"
+        validators={{ onChange: ({ value }) => validateStudyAreaName(value) }}
+      >
+        {(field) => {
+          const showError = field.state.meta.isDirty || field.state.meta.isTouched
+          const error = field.state.meta.errors[0]
+
+          return (
+            <label className="flex-1 space-y-2">
+              <span className="sr-only">Study area name</span>
+              <input
+                value={field.state.value}
+                onChange={(event) => field.handleChange(event.target.value)}
+                onBlur={field.handleBlur}
+                disabled={isBusy || form.state.isSubmitting}
+                aria-invalid={showError && Boolean(error)}
+                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+              {showError && error ? (
+                <p className="text-xs text-destructive">{String(error)}</p>
+              ) : null}
+            </label>
+          )
+        }}
+      </form.Field>
+
+      <div className="flex gap-2">
+        <Button type="submit" disabled={isBusy || form.state.isSubmitting || !form.state.canSubmit}>
+          {form.state.isSubmitting ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <PencilLine className="size-4" />
+          )}
+          Save
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isBusy || form.state.isSubmitting}
+        >
+          <X className="size-4" />
+          Cancel
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 function StudyAreasPage() {
   const {
     studyAreasQuery,
-    createStudyArea,
-    renameStudyArea,
-    deleteStudyArea,
-    isCreatingStudyArea,
-    isRenamingStudyArea,
-    isDeletingStudyArea,
+    createStudyArea: createStudyAreaMutation,
+    renameStudyArea: renameStudyAreaMutation,
+    deleteStudyArea: deleteStudyAreaMutation,
   } = useStudyAreas()
-  const [newName, setNewName] = useState("")
   const [editingId, setEditingId] = useState<number | null>(null)
-  const [editingName, setEditingName] = useState("")
   const [busyId, setBusyId] = useState<number | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -45,50 +204,38 @@ function StudyAreasPage() {
     [studyAreas]
   )
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const name = normalizeName(newName)
-    if (!name) {
-      return
-    }
-
+  async function handleCreate(name: string) {
     setActionError(null)
 
     try {
-      await createStudyArea({ name })
-      setNewName("")
+      await createStudyAreaMutation({ name })
+      await invalidateStudyAreas()
+      return true
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to create study area.")
+      return false
     }
   }
 
   function beginEdit(area: StudyArea) {
     setEditingId(area.id)
-    setEditingName(area.name)
     setActionError(null)
   }
 
   function cancelEdit() {
     setEditingId(null)
-    setEditingName("")
   }
 
-  async function handleRename(event: FormEvent<HTMLFormElement>, id: number) {
-    event.preventDefault()
-
-    const name = normalizeName(editingName)
-    if (!name) {
-      return
-    }
-
+  async function handleRename(id: number, name: string) {
     setBusyId(id)
     setActionError(null)
     try {
-      await renameStudyArea({ id, name })
-      cancelEdit()
+      await renameStudyAreaMutation({ id, name })
+      await invalidateStudyAreas()
+      return true
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to rename study area.")
+      return false
     } finally {
       setBusyId(null)
     }
@@ -103,12 +250,15 @@ function StudyAreasPage() {
     setBusyId(id)
     setActionError(null)
     try {
-      await deleteStudyArea(id)
+      await deleteStudyAreaMutation(id)
+      await invalidateStudyAreas()
       if (editingId === id) {
         cancelEdit()
       }
+      return true
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to delete study area.")
+      return false
     } finally {
       setBusyId(null)
     }
@@ -144,39 +294,7 @@ function StudyAreasPage() {
         </header>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-          <form
-            onSubmit={handleCreate}
-            className="flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-4"
-          >
-            <div className="space-y-1">
-              <h2 className="text-sm font-semibold">Create Study Area</h2>
-              <p className="text-sm text-muted-foreground">
-                Use a broad subject name like <span className="font-medium text-foreground">French</span> or{" "}
-                <span className="font-medium text-foreground">React</span>.
-              </p>
-            </div>
-
-            <label className="space-y-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Name
-              </span>
-              <input
-                value={newName}
-                onChange={(event) => setNewName(event.target.value)}
-                placeholder="Type a unique study area name"
-                className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/20"
-              />
-            </label>
-
-            <Button type="submit" disabled={isCreatingStudyArea}>
-              {isCreatingStudyArea ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              Add area
-            </Button>
-          </form>
+          <StudyAreaCreateForm onCreate={handleCreate} />
 
           <section className="rounded-2xl border border-border">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -247,7 +365,7 @@ function StudyAreasPage() {
                             variant="destructive"
                             size="sm"
                             onClick={() => void handleDelete(area.id)}
-                            disabled={isBusy || isDeletingStudyArea}
+                            disabled={isBusy}
                           >
                             {isBusy ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                             Delete
@@ -256,30 +374,12 @@ function StudyAreasPage() {
                       </div>
 
                       {isEditing ? (
-                        <form
-                          onSubmit={(event) => handleRename(event, area.id)}
-                          className="flex flex-col gap-3 sm:flex-row"
-                        >
-                          <input
-                            value={editingName}
-                            onChange={(event) => setEditingName(event.target.value)}
-                            className="h-11 flex-1 rounded-xl border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-3 focus:ring-ring/20"
-                          />
-                          <div className="flex gap-2">
-                            <Button type="submit" disabled={isBusy || isRenamingStudyArea}>
-                              {isBusy ? (
-                                <Loader2 className="size-4 animate-spin" />
-                              ) : (
-                                <PencilLine className="size-4" />
-                              )}
-                              Save
-                            </Button>
-                            <Button type="button" variant="outline" onClick={cancelEdit} disabled={isBusy}>
-                              <X className="size-4" />
-                              Cancel
-                            </Button>
-                          </div>
-                        </form>
+                        <StudyAreaEditForm
+                          area={area}
+                          isBusy={isBusy}
+                          onRename={handleRename}
+                          onCancel={cancelEdit}
+                        />
                       ) : null}
                     </div>
                   )
